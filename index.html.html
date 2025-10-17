@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Plate to Heart - Dashboard</title>
+  <style>
+    :root {
+      --brand: #00796b;
+      --brand-dark: #004d40;
+      --bg: #f4f6f8;
+      --card: #ffffff;
+    }
+    *{box-sizing:border-box}
+    body { margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:#222; }
+    .topbar { background:var(--brand); color:#fff; padding:14px 18px; text-align:center; font-weight:700; position:sticky; top:0; z-index:5; }
+    .layout { display:flex; min-height:calc(100vh - 56px); }
+    .sidebar { width:220px; background:#2f3538; color:#fff; padding-top:18px; border-right:1px solid rgba(255,255,255,0.03); }
+    .sidebar a { display:flex; align-items:center; gap:10px; padding:12px 18px; color:#fff; text-decoration:none; font-size:15px; }
+    .sidebar a:hover { background: rgba(255,255,255,0.03); cursor:pointer; }
+    .content { flex:1; padding:22px; max-width:1100px; margin:0 auto; }
+    .card { background:var(--card); padding:16px; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,0.06); margin-bottom:16px; }
+    .title { font-size:20px; margin:0 0 12px; color:var(--brand-dark); }
+    .muted { color:#666; font-size:13px; }
+    .form-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    input[type="text"], input[type="number"], input[type="email"], select { padding:10px; border-radius:8px; border:1px solid #cfd8dc; min-width:0; }
+    .btn { background:var(--brand); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
+    .btn.alt { background:#ff7043; }
+    .btn.danger { background:#e53935; }
+    .btn.ghost { background:transparent; color:var(--brand-dark); border:1px solid #ddd; padding:8px 10px; }
+    .donor-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px dashed #eee; }
+    .donor-row:last-child { border-bottom:none; }
+    @media (max-width:900px){ .layout{flex-direction:column;} .sidebar{width:100%;display:flex;overflow:auto;} .content{margin:0;padding:12px;} }
+  </style>
+</head>
+<body>
+  <div class="topbar">🍽 Plate to Heart</div>
+
+  <div class="layout">
+    <aside class="sidebar" role="navigation">
+      <a onclick="show('home')">🏠 Home</a>
+      <a onclick="show('upload')">⬆️ Upload Plate</a>
+      <a onclick="show('available')">📦 Available Plates</a>
+      <a onclick="show('history')">📜 History</a>
+      <a onclick="show('profile')">👤 Profile</a>
+    </aside>
+
+    <main class="content">
+      <!-- HOME -->
+      <section id="home" class="card page">
+        <h2 class="title">Welcome</h2>
+        <p class="muted">Use the sidebar to upload plates or view current availability. Uploads will appear under <strong>Available Plates</strong>.</p>
+        <div class="card">
+          <div class="muted">Quick totals</div>
+          <div style="display:flex;gap:24px;margin-top:8px">
+            <div><div class="muted">Total Plates</div><div id="totalPlates" style="font-weight:700;font-size:20px">0</div></div>
+            <div><div class="muted">Active Donors</div><div id="totalDonors" style="font-weight:700;font-size:20px">0</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- UPLOAD -->
+      <section id="upload" class="card page" style="display:none;">
+        <h2 class="title">Upload Plate Availability</h2>
+        <p class="muted">When you upload, the donor will be listed in Available Plates with the selected food type and curry name.</p>
+
+        <form id="uploadForm">
+          <div class="form-row">
+            <input id="u_name" type="text" placeholder="Donor name (e.g. Hotel Sunshine)" style="flex:2" required />
+            <select id="u_type" style="flex:1">
+              <option value="hotel">Hotel</option>
+              <option value="hostel">Hostel</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <input id="u_plates" type="number" min="1" placeholder="Number of plates" required style="flex:1" />
+            <input id="u_location" type="text" placeholder="Location (optional)" style="flex:2" />
+          </div>
+
+          <div class="form-row" style="align-items:center;">
+            <div style="flex:1">
+              <div class="muted">Food Type</div>
+              <label style="margin-right:12px"><input type="radio" name="foodType" value="Veg" checked> Veg</label>
+              <label><input type="radio" name="foodType" value="Non-Veg"> Non-Veg</label>
+            </div>
+            <div style="flex:2">
+              <label class="muted">Curry Name (optional)</label>
+              <input id="u_curry" type="text" placeholder="e.g. Sambar / Chicken Curry" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <button type="submit" class="btn">Upload to Available Plates</button>
+            <button type="button" class="btn ghost" onclick="show('home')">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- AVAILABLE -->
+      <section id="available" class="card page" style="display:none;">
+        <h2 class="title">Available Plates</h2>
+        <div class="card">
+          <div id="donorList" class="muted">Loading donors...</div>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section id="history" class="card page" style="display:none;">
+        <h2 class="title">Pickup History</h2>
+        <p class="muted">Completed pickups are archived here with timestamp.</p>
+        <div class="card">
+          <div id="historyList" class="muted">Loading history...</div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn alt" onclick="clearHistory()">Clear History</button>
+          <button class="btn ghost" onclick="exportData()">Export Data (console)</button>
+        </div>
+      </section>
+
+      <!-- PROFILE -->
+      <section id="profile" class="card page" style="display:none;">
+        <h2 class="title">Profile Details</h2>
+        <div class="card">
+          <label>Phone Number</label>
+          <input id="pf_phone" type="text" placeholder="Phone number">          <br>
+
+          <label>Email ID</label>
+          <input id="pf_email" type="email" placeholder="Email">          <br>
+
+          <label>Street</label>
+          <input id="pf_street" type="text" placeholder="Street"><br>
+
+          <label>Village</label>
+          <input id="pf_village" type="text" placeholder="Village"><br>
+
+          <label>Mandal</label>
+          <input id="pf_mandal" type="text" placeholder="Mandal"><br>
+
+          <label>District</label>
+          <input id="pf_district" type="text" placeholder="District"><br>
+
+          <label>State</label>
+          <input id="pf_state" type="text" placeholder="State"><br>
+
+          <label>Pin Code</label>
+          <input id="pf_pin" type="text" placeholder="Pin code"><br>
+
+          <label>Hostel or Hotel</label>
+          <select id="pf_type"><option value="hostel">Hostel</option><option value="hotel">Hotel</option><option value="charity">Charity</option></select>
+
+          <div style="margin-top:12px">
+            <button class="btn" onclick="saveProfile()">Save Profile</button>
+            <button class="btn ghost" onclick="show('home')">Back</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /* --- storage keys / migration --- */
+    const DONOR_KEYS = ['donors','pth_donors_v1','pth_donors','pth_donors_v2'];
+    const HISTORY_KEYS = ['history','pth_history_v1','pth_history'];
+
+    let donors = [];   // canonical array of donor objects {name,type,plates,location,foodType,curry, status}
+    let history = [];  // canonical array for completed pickups
+
+    function toInt(v){ const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0; }
+
+    function parseDonorValue(raw){
+      try {
+        if(!raw) return [];
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed)){
+          return parsed.map(p => ({
+            name: p.name || p.title || '',
+            type: p.type || p.category || 'unknown',
+            plates: toInt(p.plates || p.count || p.qty || 0),
+            location: p.location || p.loc || '',
+            foodType: p.foodType || p.food || '',
+            curry: p.curry || ''
+          }));
+        } else if(typeof parsed === 'object' && parsed !== null){
+          return Object.keys(parsed).map(k => ({ name:k, type:'unknown', plates: toInt(parsed[k]), location:'', foodType:'', curry:'' }));
+        }
+      } catch(e){
+        console.warn('parseDonorValue error', e);
+      }
+      return [];
+    }
+
+    function mergeIntoMap(arr){
+      const map = new Map();
+      arr.forEach(item => {
+        if(!item || !item.name) return;
+        const name = String(item.name).trim();
+        const type = (item.type || 'unknown').toString().trim();
+        const key = (name + '||' + type).toLowerCase();
+        const plates = toInt(item.plates || 0);
+        const location = item.location || '';
+        const foodType = item.foodType || item.food || '';
+        const curry = item.curry || '';
+        if(map.has(key)){
+          const ex = map.get(key);
+          ex.plates += plates;
+          if(location) ex.location = location;
+          if(foodType) ex.foodType = foodType;
+          if(curry) ex.curry = curry;
+        } else {
+          map.set(key, { name, type, plates, location, foodType, curry, status:'available' });
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    function loadAll(){
+      // donors
+      let combined = [];
+      DONOR_KEYS.forEach(k => {
+        const raw = localStorage.getItem(k);
+        if(raw) combined = combined.concat(parseDonorValue(raw));
+      });
+      // if canonical key exists, include it too
+      const rawCanonical = localStorage.getItem('donors');
+      if(rawCanonical) combined = combined.concat(parseDonorValue(rawCanonical));
+
+      donors = mergeIntoMap(combined);
+
+      // history
+      let hcombined = [];
+      HISTORY_KEYS.forEach(k => {
+        const raw = localStorage.getItem(k);
+        if(raw){
+          try {
+            const parsed = JSON.parse(raw);
+            if(Array.isArray(parsed)){
+              hcombined = hcombined.concat(parsed.map(h => ({ name:h.name||'', type:h.type||'unknown', plates:toInt(h.plates||0), location:h.location||'', foodType:h.foodType||'', curry:h.curry||'', ts:h.ts || h.time || new Date().toISOString() })));
+            }
+          } catch(e){}
+        }
+      });
+      const rawHist = localStorage.getItem('history');
+      if(rawHist){
+        try { const parsed = JSON.parse(rawHist); if(Array.isArray(parsed)) hcombined = hcombined.concat(parsed); } catch(e){}
+      }
+      history = hcombined.map(h => ({ ...h, ts: h.ts || new Date().toISOString() }));
+
+      // ensure canonical stored
+      saveAll();
+    }
+
+    function saveAll(){
+      try {
+        localStorage.setItem('donors', JSON.stringify(donors));
+        localStorage.setItem('history', JSON.stringify(history));
+      } catch(e){ console.error('saveAll failed', e); }
+    }
+
+    /* --- rendering --- */
+    function renderSummary(){
+      const total = donors.reduce((s,d) => s + toInt(d.plates), 0);
+      document.getElementById('totalPlates').textContent = total;
+      document.getElementById('totalDonors').textContent = donors.length;
+    }
+
+    function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+    function renderDonors(){
+      const container = document.getElementById('donorList');
+      container.innerHTML = '';
+      if(!donors || donors.length === 0){
+        container.innerHTML = '<div class="muted">No plates available right now.</div>';
+        renderSummary();
+        return;
+      }
+      donors.forEach((d, idx) => {
+        const node = document.createElement('div');
+        node.className = 'donor-row';
+        node.innerHTML = `
+          <div>
+            <div style="font-weight:700">${escapeHtml(d.name)} <span class="muted" style="font-weight:600">· ${escapeHtml(d.type)}</span></div>
+            <div class="muted" style="font-size:13px">${d.location ? escapeHtml(d.location) : ''} ${d.foodType ? '&middot; ' + escapeHtml(d.foodType) : ''} ${d.curry ? '&middot; ' + escapeHtml(d.curry) : ''}</div>
+          </div>
+          <div style="text-align:right;min-width:220px">
+            <div style="font-weight:700;margin-bottom:6px">${toInt(d.plates)} plates</div>
+            <div>
+              ${d.status === 'pickup_requested' ? 
+                `<button class="btn danger" onclick="completePickup(${idx})">Mark Pickup Completed</button>
+                 <button class="btn ghost" style="margin-left:8px" onclick="cancelRequest(${idx})">Cancel Request</button>` :
+                `<button class="btn" onclick="requestPickup(${idx})">Request Pickup</button>
+                 <button class="btn ghost" style="margin-left:8px" onclick="quickRemove(${idx})">Quick Remove</button>`
+              }
+            </div>
+          </div>
+        `;
+        container.appendChild(node);
+      });
+      renderSummary();
+    }
+
+    function renderHistory(){
+      const el = document.getElementById('historyList');
+      el.innerHTML = '';
+      if(!history || history.length === 0){
+        el.innerHTML = '<div class="muted">No pickups completed yet.</div>';
+        return;
+      }
+      // show newest first
+      history.slice().reverse().forEach(rec => {
+        const row = document.createElement('div');
+        row.className = 'donor-row';
+        row.style.borderBottom = '1px dashed #eee';
+        row.innerHTML = `
+          <div>
+            <div style="font-weight:700">${escapeHtml(rec.name)} <span class="muted" style="font-weight:600">· ${escapeHtml(rec.type)}</span></div>
+            <div class="muted" style="font-size:13px">${rec.location ? escapeHtml(rec.location) : ''} ${rec.foodType ? '&middot; ' + escapeHtml(rec.foodType) : ''} ${rec.curry ? '&middot; ' + escapeHtml(rec.curry) : ''}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700">${toInt(rec.plates)} plates</div>
+            <div class="muted" style="font-size:12px">${new Date(rec.ts).toLocaleString()}</div>
+          </div>
+        `;
+        el.appendChild(row);
+      });
+    }
+
+    /* --- actions --- */
+    document.getElementById('uploadForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      const name = document.getElementById('u_name').value.trim();
+      const type = document.getElementById('u_type').value || 'hotel';
+      const plates = toInt(document.getElementById('u_plates').value);
+      const location = document.getElementById('u_location').value.trim();
+      const curry = document.getElementById('u_curry').value.trim();
+      const foodType = (document.querySelector('input[name="foodType"]:checked')||{}).value || '';
+
+      if(!name || plates <= 0){ alert('Enter donor name and 1 or more plates.'); return; }
+
+      const key = (name + '||' + type).toLowerCase();
+      const idx = donors.findIndex(d => ((d.name + '||' + (d.type||'unknown')).toLowerCase() === key));
+      if(idx >= 0){
+        donors[idx].plates = toInt(donors[idx].plates) + plates;
+        if(location) donors[idx].location = location;
+        if(foodType) donors[idx].foodType = foodType;
+        if(curry) donors[idx].curry = curry;
+        donors[idx].status = 'available';
+      } else {
+        donors.push({ name, type, plates, location, foodType, curry, status:'available' });
+      }
+      saveAll();
+      document.getElementById('uploadForm').reset();
+      show('available');
+      renderDonors();
+      alert('Uploaded successfully!');
+    });
+
+    function requestPickup(index){
+      if(!donors[index]) return;
+      donors[index].status = 'pickup_requested';
+      saveAll();
+      renderDonors();
+      alert('Pickup requested. When pickup is done, press "Mark Pickup Completed".');
+    }
+
+    function cancelRequest(index){
+      if(!donors[index]) return;
+      donors[index].status = 'available';
+      saveAll();
+      renderDonors();
+    }
+
+    function quickRemove(index){
+      if(!donors[index]) return;
+      if(!confirm(`Move ${donors[index].name} to history (remove from Available)?`)) return;
+      const rec = { ...donors[index], ts: new Date().toISOString() };
+      history.push(rec);
+      donors.splice(index, 1);
+      saveAll();
+      renderDonors();
+      renderHistory();
+    }
+
+    function completePickup(index){
+      if(!donors[index]) return;
+      const rec = { ...donors[index], ts: new Date().toISOString() };
+      history.push(rec);
+      donors.splice(index, 1);
+      saveAll();
+      renderDonors();
+      renderHistory();
+      alert('Pickup completed and moved to History.');
+    }
+
+    function clearHistory(){
+      if(!confirm('Clear entire history? This cannot be undone.')) return;
+      history = [];
+      saveAll();
+      renderHistory();
+    }
+
+    function exportData(){
+      console.log('donors', donors);
+      console.log('history', history);
+      alert('Data exported to console. Open DevTools to inspect.');
+    }
+
+    function saveProfile(){
+      const pf = {
+        phone: document.getElementById('pf_phone').value.trim(),
+        email: document.getElementById('pf_email').value.trim(),
+        street: document.getElementById('pf_street').value.trim(),
+        village: document.getElementById('pf_village').value.trim(),
+        mandal: document.getElementById('pf_mandal').value.trim(),
+        district: document.getElementById('pf_district').value.trim(),
+        state: document.getElementById('pf_state').value.trim(),
+        pin: document.getElementById('pf_pin').value.trim(),
+        type: document.getElementById('pf_type').value
+      };
+      localStorage.setItem('pth_profile_v1', JSON.stringify(pf));
+      alert('Profile saved locally for demo.');
+      show('home');
+    }
+
+    function loadProfile(){
+      try {
+        const raw = localStorage.getItem('pth_profile_v1');
+        if(!raw) return;
+        const pf = JSON.parse(raw);
+        document.getElementById('pf_phone').value = pf.phone || '';
+        document.getElementById('pf_email').value = pf.email || '';
+        document.getElementById('pf_street').value = pf.street || '';
+        document.getElementById('pf_village').value = pf.village || '';
+        document.getElementById('pf_mandal').value = pf.mandal || '';
+        document.getElementById('pf_district').value = pf.district || '';
+        document.getElementById('pf_state').value = pf.state || '';
+        document.getElementById('pf_pin').value = pf.pin || '';
+        document.getElementById('pf_type').value = pf.type || 'hostel';
+      } catch(e){ console.warn('loadProfile failed', e); }
+    }
+
+    /* show section helper */
+    function show(id){
+      ['home','upload','available','history','profile'].forEach(k => {
+        const el = document.getElementById(k);
+        if(el) el.style.display = (k === id) ? '' : 'none';
+      });
+      if(id === 'available') renderDonors();
+      if(id === 'history') renderHistory();
+      if(id === 'profile') loadProfile();
+    }
+
+    /* init */
+    (function init(){
+      loadAll();
+      renderDonors();
+      renderHistory();
+      loadProfile();
+      show('home');
+    })();
+  </script>
+</body>
+</html>
